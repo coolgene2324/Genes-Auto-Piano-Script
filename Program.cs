@@ -57,7 +57,7 @@ namespace MidiPianoPlayer
                     // Initialize MIDI output to loopMIDI virtual port
                     using (OutputDevice outputDevice = new OutputDevice(GetLoopMidiPortNumber("loopMIDI Port")))
                     {
-                        Console.WriteLine("Press PageUp to pause/resume. Press Home to fast forward 5 seconds, End to rewind 5 seconds.");
+                        Console.WriteLine("Press PageUp to pause/resume. Press End to fast forward 5 seconds, End to rewind 5 seconds.");
 
                         Thread playbackThread = new Thread(() => PlayMidiFile(sequence, outputDevice));
                         playbackThread.Start();
@@ -73,11 +73,11 @@ namespace MidiPianoPlayer
                                     pauseEvent.Set();
                                 }
                             }
-                            else if (key == ConsoleKey.Home)
+                            else if (key == ConsoleKey.End)
                             {
                                 FastForward(5000);
                             }
-                            else if (key == ConsoleKey.End)
+                            else if (key == ConsoleKey.Home)
                             {
                                 Rewind(5000);
                             }

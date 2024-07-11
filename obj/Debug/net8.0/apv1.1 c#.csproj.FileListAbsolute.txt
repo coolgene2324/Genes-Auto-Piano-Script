@@ -21,3 +21,4 @@ C:\Users\coolg\source\repos\apv1.1 c#\apv1.1 c#\obj\Debug\net8.0\refint\apv1.1 c
 C:\Users\coolg\source\repos\apv1.1 c#\apv1.1 c#\obj\Debug\net8.0\apv1.1 c#.pdb
 C:\Users\coolg\source\repos\apv1.1 c#\apv1.1 c#\obj\Debug\net8.0\apv1.1 c#.genruntimeconfig.cache
 C:\Users\coolg\source\repos\apv1.1 c#\apv1.1 c#\obj\Debug\net8.0\ref\apv1.1 c#.dll
+C:\Users\coolg\source\repos\apv1.1 c#\apv1.1 c#\obj\Debug\net8.0\apv1.1 c#.sourcelink.json
