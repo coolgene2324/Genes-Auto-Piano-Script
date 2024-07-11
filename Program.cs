@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
-using System.Windows.Forms; // Ensure to use System.Windows.Forms
+using System.Windows.Forms; // Will remove after debugging
 using Sanford.Multimedia.Midi;
 
 namespace MidiPianoPlayer
@@ -77,7 +77,7 @@ namespace MidiPianoPlayer
                         Thread playbackThread = new Thread(() => PlayMidiFile(outputDevice));
                         playbackThread.Start();
 
-                        while (playbackThread.IsAlive)
+                        while (playbackThread.IsAlive) // nah i am pretty dead
                         {
                             var key = Console.ReadKey(true).Key;
                             if (key == ConsoleKey.PageUp)
@@ -91,7 +91,7 @@ namespace MidiPianoPlayer
                             }
                             else if (key == ConsoleKey.End)
                             {
-                                isFastForwardingOrRewinding = true;
+                                isFastForwardingOrRewinding = true; // pain in the ass still don't work
                                 FastForward(5000);
                                 isFastForwardingOrRewinding = false;
                                 pauseEvent.Set();
@@ -162,7 +162,7 @@ namespace MidiPianoPlayer
 
                 if (isFastForwardingOrRewinding)
                 {
-                    Thread.Sleep(10); // Short sleep to prevent busy waiting
+                    Thread.Sleep(10); // to prevent busy waiting
                     continue;
                 }
 
