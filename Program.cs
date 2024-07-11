@@ -2,7 +2,9 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
+using System.Windows.Forms; // Ensure to use System.Windows.Forms
 using Sanford.Multimedia.Midi;
 
 namespace MidiPianoPlayer
@@ -14,16 +16,29 @@ namespace MidiPianoPlayer
         static double playbackSpeed = 1.0;
         static long position = 0;
         static long currentTime = 0;
+        static double tempo = 500000; // Default tempo in microseconds per quarter note (120 BPM)
         static SortedList<long, List<MidiEvent>> events;
+        static bool exitToMenu = false;
+        static bool isFastForwardingOrRewinding = false;
+        static Sequence sequence;
+        static DebugForm debugForm;
 
+        [STAThread]
         static void Main(string[] args)
         {
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+
+            debugForm = new DebugForm();
+            Thread debugThread = new Thread(() => Application.Run(debugForm));
+            debugThread.Start();
+
             while (true)
             {
                 // Get all MIDI files in the same directory as the executable
                 string[] midiFiles = Directory.GetFiles(AppDomain.CurrentDomain.BaseDirectory, "*.mid");
 
-                // Sort MIDI files alphabetically and display them
+                // Sort MIDI files and display them
                 Array.Sort(midiFiles);
                 Console.WriteLine("Select a MIDI file to play:");
                 for (int i = 0; i < midiFiles.Length; i++)
@@ -51,15 +66,15 @@ namespace MidiPianoPlayer
                 try
                 {
                     // Load MIDI file
-                    Sequence sequence = new Sequence();
+                    sequence = new Sequence();
                     sequence.Load(midiFilePath);
 
                     // Initialize MIDI output to loopMIDI virtual port
                     using (OutputDevice outputDevice = new OutputDevice(GetLoopMidiPortNumber("loopMIDI Port")))
                     {
-                        Console.WriteLine("Press PageUp to pause/resume. Press End to fast forward 5 seconds, Home to rewind 5 seconds.");
+                        Console.WriteLine("Press PageUp to pause/resume. Press End to fast forward 5 seconds, Home to rewind 5 seconds, Escape to return to menu.");
 
-                        Thread playbackThread = new Thread(() => PlayMidiFile(sequence, outputDevice));
+                        Thread playbackThread = new Thread(() => PlayMidiFile(outputDevice));
                         playbackThread.Start();
 
                         while (playbackThread.IsAlive)
@@ -68,6 +83,7 @@ namespace MidiPianoPlayer
                             if (key == ConsoleKey.PageUp)
                             {
                                 isPaused = !isPaused;
+                                debugForm.AddMessage($"Pause/Resume at {currentTime / sequence.Division * (tempo / 1000000.0):F3} seconds");
                                 if (!isPaused)
                                 {
                                     pauseEvent.Set();
@@ -75,11 +91,28 @@ namespace MidiPianoPlayer
                             }
                             else if (key == ConsoleKey.End)
                             {
+                                isFastForwardingOrRewinding = true;
                                 FastForward(5000);
+                                isFastForwardingOrRewinding = false;
+                                pauseEvent.Set();
+                                debugForm.AddMessage($"Fast Forward to {currentTime / sequence.Division * (tempo / 1000000.0):F3} seconds");
                             }
                             else if (key == ConsoleKey.Home)
                             {
+                                isFastForwardingOrRewinding = true;
                                 Rewind(5000);
+                                isFastForwardingOrRewinding = false;
+                                pauseEvent.Set();
+                                debugForm.AddMessage($"Rewind to {currentTime / sequence.Division * (tempo / 1000000.0):F3} seconds");
+                            }
+                            else if (key == ConsoleKey.Escape)
+                            {
+                                exitToMenu = true;
+                                if (isPaused)
+                                {
+                                    pauseEvent.Set();
+                                }
+                                break;
                             }
                         }
 
@@ -94,9 +127,8 @@ namespace MidiPianoPlayer
             }
         }
 
-        private static void PlayMidiFile(Sequence sequence, OutputDevice outputDevice)
+        private static void PlayMidiFile(OutputDevice outputDevice)
         {
-            double tempo = 500000; // Default tempo in microseconds per quarter note (120 BPM)
             double microsecondsPerTick = tempo / sequence.Division;
             currentTime = 0;
 
@@ -121,42 +153,35 @@ namespace MidiPianoPlayer
             bool sustainPedalDown = false;
             List<ChannelMessage> sustainedNotes = new List<ChannelMessage>();
 
-            foreach (var kvp in events)
+            while (!exitToMenu && currentTime < events.Keys.Last())
             {
-                long targetTime = kvp.Key;
-                long deltaTime = targetTime - currentTime;
-                if (deltaTime < 0) continue; // Ensure deltaTime is non-negative
-                currentTime = targetTime;
-
                 if (isPaused)
                 {
                     pauseEvent.WaitOne();
                 }
 
-                Thread.Sleep((int)(deltaTime * microsecondsPerTick / 1000.0 / playbackSpeed));
-
-                foreach (MidiEvent midiEvent in kvp.Value)
+                if (isFastForwardingOrRewinding)
                 {
-                    if (midiEvent.MidiMessage is ChannelMessage channelMessage)
+                    Thread.Sleep(10); // Short sleep to prevent busy waiting
+                    continue;
+                }
+
+                if (events.TryGetValue(currentTime, out var midiEvents))
+                {
+                    foreach (MidiEvent midiEvent in midiEvents)
                     {
-                        if (channelMessage.Command == ChannelCommand.NoteOn)
+                        if (midiEvent.MidiMessage is ChannelMessage channelMessage)
                         {
-                            outputDevice.Send(channelMessage);
-                        }
-                        else if (channelMessage.Command == ChannelCommand.NoteOff)
-                        {
-                            if (sustainPedalDown)
-                            {
-                                sustainedNotes.Add(channelMessage);
-                            }
-                            else
+                            if (channelMessage.Command == ChannelCommand.NoteOn || channelMessage.Command == ChannelCommand.NoteOff)
                             {
                                 outputDevice.Send(channelMessage);
+                                debugForm.AddMessage($"Note {(channelMessage.Command == ChannelCommand.NoteOn ? "On" : "Off")} - Note: {channelMessage.Data1}, Velocity: {channelMessage.Data2}, Time: {currentTime / sequence.Division * (tempo / 1000000.0):F3} seconds");
+                                if (channelMessage.Command == ChannelCommand.NoteOff && sustainPedalDown)
+                                {
+                                    sustainedNotes.Add(channelMessage);
+                                }
                             }
-                        }
-                        else if (channelMessage.Command == ChannelCommand.Controller)
-                        {
-                            if (channelMessage.Data1 == 64) // 64 is the controller number for the sustain pedal
+                            else if (channelMessage.Command == ChannelCommand.Controller && channelMessage.Data1 == 64)
                             {
                                 sustainPedalDown = channelMessage.Data2 >= 64;
                                 if (!sustainPedalDown)
@@ -169,37 +194,46 @@ namespace MidiPianoPlayer
                                 }
                             }
                         }
-                    }
-                    else if (midiEvent.MidiMessage is MetaMessage metaMessage)
-                    {
-                        if (metaMessage.MetaType == MetaType.Tempo)
+                        else if (midiEvent.MidiMessage is MetaMessage)
                         {
-                            byte[] data = metaMessage.GetBytes();
-                            tempo = (data[0] << 16) | (data[1] << 8) | data[2];
-                            microsecondsPerTick = tempo / sequence.Division;
+                            if (((MetaMessage)midiEvent.MidiMessage).MetaType == MetaType.Tempo)
+                            {
+                                byte[] data = ((MetaMessage)midiEvent.MidiMessage).GetBytes();
+                                tempo = (data[0] << 16) | (data[1] << 8) | data[2];
+                                microsecondsPerTick = tempo / sequence.Division;
+                            }
                         }
                     }
                 }
+
+                long nextEventTime = currentTime;
+                if (events.Keys.Count > 0)
+                {
+                    nextEventTime = events.Keys.FirstOrDefault(t => t > currentTime);
+                }
+
+                long deltaTime = nextEventTime - currentTime;
+                currentTime = nextEventTime;
+
+                Thread.Sleep((int)(deltaTime * microsecondsPerTick / 1000.0 / playbackSpeed));
             }
         }
 
         private static void FastForward(int milliseconds)
         {
-            position += (long)(milliseconds * 1000 / playbackSpeed);
-            if (events.ContainsKey(position))
+            long ticksToAdvance = (long)(milliseconds * sequence.Division / (tempo / 1000000.0));
+            position += ticksToAdvance;
+            if (position >= events.Keys.Last())
             {
-                currentTime = position;
+                position = events.Keys.Last();
             }
-            else
-            {
-                currentTime = events.Keys[events.Keys.Count - 1];
-                position = currentTime;
-            }
+            currentTime = position;
         }
 
         private static void Rewind(int milliseconds)
         {
-            position -= (long)(milliseconds * 1000 / playbackSpeed);
+            long ticksToRewind = (long)(milliseconds * sequence.Division / (tempo / 1000000.0));
+            position -= ticksToRewind;
             if (position < 0)
             {
                 position = 0;
@@ -218,6 +252,34 @@ namespace MidiPianoPlayer
                 }
             }
             throw new Exception($"Virtual MIDI port '{portName}' not found.");
+        }
+    }
+
+    public class DebugForm : Form
+    {
+        private ListBox listBox;
+
+        public DebugForm()
+        {
+            Text = "Debug Information";
+            Width = 800;
+            Height = 600;
+
+            listBox = new ListBox() { Dock = DockStyle.Fill };
+            Controls.Add(listBox);
+        }
+
+        public void AddMessage(string message)
+        {
+            if (InvokeRequired)
+            {
+                Invoke(new Action<string>(AddMessage), message);
+            }
+            else
+            {
+                listBox.Items.Add(message);
+                listBox.SelectedIndex = listBox.Items.Count - 1;
+            }
         }
     }
 }
