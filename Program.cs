@@ -43,7 +43,7 @@ namespace MidiPianoPlayer
                 int selectedFileIndex = 0;
                 while (true)
                 {
-                    Console.Write("Enter the number of the MIDI file: ");
+                    Console.Write("Enter MIDI file Number to play: ");
                     if (int.TryParse(Console.ReadLine(), out selectedFileIndex) &&
                         selectedFileIndex > 0 &&
                         selectedFileIndex <= midiFiles.Length)
