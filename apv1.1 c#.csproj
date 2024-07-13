@@ -7,6 +7,7 @@
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
 		<UseWindowsForms>true</UseWindowsForms>
+		<Configurations>Debug;Release;Experimental</Configurations>
 	</PropertyGroup>
 
 	<ItemGroup>
