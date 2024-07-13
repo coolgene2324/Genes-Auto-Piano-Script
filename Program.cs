@@ -19,6 +19,7 @@ namespace MidiPianoPlayer
         static bool exitToMenu = false;
         static bool isFastForwardingOrRewinding = false;
         static Sequence sequence;
+        static Thread playbackThread;
 
         [STAThread]
         static void Main(string[] args)
@@ -55,6 +56,16 @@ namespace MidiPianoPlayer
 
                 try
                 {
+                    // Clean up previous playback thread and reset flags
+                    exitToMenu = false;
+                    isPaused = false;
+                    pauseEvent.Set(); // Release any previous pause
+
+                    if (playbackThread != null && playbackThread.IsAlive)
+                    {
+                        playbackThread.Join(); // Wait for previous thread to terminate
+                    }
+
                     // Load MIDI file
                     sequence = new Sequence();
                     sequence.Load(midiFilePath);
@@ -64,7 +75,7 @@ namespace MidiPianoPlayer
                     {
                         Console.WriteLine("Press PageUp to pause/resume. Press End to fast forward 5 seconds, Home to rewind 5 seconds, Escape to return to menu.");
 
-                        Thread playbackThread = new Thread(() => PlayMidiFile(outputDevice));
+                        playbackThread = new Thread(() => PlayMidiFile(outputDevice));
                         playbackThread.Start();
 
                         while (playbackThread.IsAlive)
@@ -108,7 +119,7 @@ namespace MidiPianoPlayer
                             }
                         }
 
-                        playbackThread.Join();
+                        playbackThread.Join(); // Ensure playback thread completes
                         Console.WriteLine("MIDI playback finished.");
                     }
                 }
