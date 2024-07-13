@@ -1,3 +1,1 @@
-This program at this time requires loopMIDI to operate as a midi simulated device
-loopMIDI is available at https://www.tobias-erichsen.de/software/loopmidi.html
-Name the port on loopMIDI "loopMIDI Port"
+This program at this time requires LoopBe to operate as a midi simulated device you can get loopbee at https://www.nerds.de/en/loopbe1.html. 
