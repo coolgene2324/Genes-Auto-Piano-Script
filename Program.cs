@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
-using NAudio.Midi;
+using Sanford.Multimedia.Midi;
 
 namespace MidiPianoPlayer
 {
@@ -18,7 +18,7 @@ namespace MidiPianoPlayer
         static SortedList<long, List<MidiEvent>> events;
         static bool exitToMenu = false;
         static bool isFastForwardingOrRewinding = false;
-        static MidiFile midiFile;
+        static Sequence sequence;
 
         [STAThread]
         static void Main(string[] args)
@@ -56,10 +56,11 @@ namespace MidiPianoPlayer
                 try
                 {
                     // Load MIDI file
-                    midiFile = new MidiFile(midiFilePath, false);
+                    sequence = new Sequence();
+                    sequence.Load(midiFilePath);
 
                     // Initialize MIDI output to LoopBe1 virtual port
-                    using (var outputDevice = new MidiOut(GetLoopMidiPortNumber("LoopBe Internal MIDI")))
+                    using (OutputDevice outputDevice = new OutputDevice(GetLoopMidiPortNumber("LoopBe Internal MIDI")))
                     {
                         Console.WriteLine("Press PageUp to pause/resume. Press End to fast forward 5 seconds, Home to rewind 5 seconds, Escape to return to menu.");
 
@@ -72,7 +73,7 @@ namespace MidiPianoPlayer
                             if (key == ConsoleKey.PageUp)
                             {
                                 isPaused = !isPaused;
-                                // EnqueueDebugMessage($"Pause/Resume at {currentTime / midiFile.DeltaTicksPerQuarterNote * (tempo / 1000000.0):F3} seconds");
+                                Console.WriteLine(isPaused ? "Paused" : "Resumed");
                                 if (!isPaused)
                                 {
                                     pauseEvent.Set();
@@ -81,18 +82,20 @@ namespace MidiPianoPlayer
                             else if (key == ConsoleKey.End)
                             {
                                 isFastForwardingOrRewinding = true;
+                                long previousTime = currentTime;
                                 FastForward(5000);
                                 isFastForwardingOrRewinding = false;
                                 pauseEvent.Set();
-                                // EnqueueDebugMessage($"Fast Forward to {currentTime / midiFile.DeltaTicksPerQuarterNote * (tempo / 1000000.0):F3} seconds");
+                                Console.WriteLine($"Fast Forward from {previousTime / sequence.Division * (tempo / 1000000.0):F3} seconds to {currentTime / sequence.Division * (tempo / 1000000.0):F3} seconds");
                             }
                             else if (key == ConsoleKey.Home)
                             {
                                 isFastForwardingOrRewinding = true;
+                                long previousTime = currentTime;
                                 Rewind(5000);
                                 isFastForwardingOrRewinding = false;
                                 pauseEvent.Set();
-                                // EnqueueDebugMessage($"Rewind to {currentTime / midiFile.DeltaTicksPerQuarterNote * (tempo / 1000000.0):F3} seconds");
+                                Console.WriteLine($"Rewind from {previousTime / sequence.Division * (tempo / 1000000.0):F3} seconds to {currentTime / sequence.Division * (tempo / 1000000.0):F3} seconds");
                             }
                             else if (key == ConsoleKey.Escape)
                             {
@@ -116,20 +119,20 @@ namespace MidiPianoPlayer
             }
         }
 
-        private static void PlayMidiFile(MidiOut outputDevice)
+        private static void PlayMidiFile(OutputDevice outputDevice)
         {
-            double microsecondsPerTick = tempo / midiFile.DeltaTicksPerQuarterNote;
+            double microsecondsPerTick = tempo / sequence.Division;
             currentTime = 0;
 
             events = new SortedList<long, List<MidiEvent>>();
 
-            foreach (var track in midiFile.Events)
+            foreach (Track track in sequence)
             {
                 long trackTime = 0;
 
-                foreach (var midiEvent in track)
+                foreach (MidiEvent midiEvent in track.Iterator())
                 {
-                    trackTime += midiEvent.DeltaTime;
+                    trackTime += midiEvent.DeltaTicks;
 
                     if (!events.ContainsKey(trackTime))
                     {
@@ -140,7 +143,7 @@ namespace MidiPianoPlayer
             }
 
             bool sustainPedalDown = false;
-            List<MidiEvent> sustainedNotes = new List<MidiEvent>();
+            Dictionary<int, ChannelMessage> sustainedNotes = new Dictionary<int, ChannelMessage>();
 
             while (!exitToMenu && currentTime < events.Keys.Last())
             {
@@ -157,41 +160,56 @@ namespace MidiPianoPlayer
 
                 if (events.TryGetValue(currentTime, out var midiEvents))
                 {
-                    foreach (var midiEvent in midiEvents)
+                    foreach (MidiEvent midiEvent in midiEvents)
                     {
-                        if (midiEvent is NoteOnEvent noteOnEvent)
+                        if (midiEvent.MidiMessage is ChannelMessage channelMessage)
                         {
-                            outputDevice.Send(noteOnEvent.GetAsShortMessage());
-                            // EnqueueDebugMessage($"Note On - Note: {noteOnEvent.NoteNumber}, Velocity: {noteOnEvent.Velocity}, Time: {currentTime / midiFile.DeltaTicksPerQuarterNote * (tempo / 1000000.0):F3} seconds");
-                        }
-                        else if (midiEvent is NoteEvent noteEvent && noteEvent.CommandCode == MidiCommandCode.NoteOff)
-                        {
-                            if (sustainPedalDown)
+                            if (channelMessage.Command == ChannelCommand.NoteOn && channelMessage.Data2 > 0)
                             {
-                                sustainedNotes.Add(noteEvent);
-                            }
-                            else
-                            {
-                                outputDevice.Send(noteEvent.GetAsShortMessage());
-                            }
-                            // EnqueueDebugMessage($"Note Off - Note: {noteEvent.NoteNumber}, Velocity: {noteEvent.Velocity}, Time: {currentTime / midiFile.DeltaTicksPerQuarterNote * (tempo / 1000000.0):F3} seconds");
-                        }
-                        else if (midiEvent is ControlChangeEvent controlChangeEvent && controlChangeEvent.Controller == MidiController.Sustain)
-                        {
-                            sustainPedalDown = controlChangeEvent.ControllerValue >= 64;
-                            if (!sustainPedalDown)
-                            {
-                                foreach (var sustainedNote in sustainedNotes)
+                                outputDevice.Send(channelMessage);
+                                if (sustainPedalDown)
                                 {
-                                    outputDevice.Send(sustainedNote.GetAsShortMessage());
+                                    sustainedNotes[channelMessage.Data1] = channelMessage;
                                 }
-                                sustainedNotes.Clear();
+                            }
+                            else if (channelMessage.Command == ChannelCommand.NoteOff || (channelMessage.Command == ChannelCommand.NoteOn && channelMessage.Data2 == 0))
+                            {
+                                if (sustainPedalDown)
+                                {
+                                    sustainedNotes[channelMessage.Data1] = channelMessage;
+                                }
+                                else
+                                {
+                                    outputDevice.Send(channelMessage);
+                                }
+                            }
+                            else if (channelMessage.Command == ChannelCommand.Controller && channelMessage.Data1 == 64)
+                            {
+                                sustainPedalDown = channelMessage.Data2 >= 64;
+                                if (!sustainPedalDown)
+                                {
+                                    foreach (var sustainedNote in sustainedNotes.Values)
+                                    {
+                                        outputDevice.Send(new ChannelMessage(ChannelCommand.NoteOff, sustainedNote.MidiChannel, sustainedNote.Data1, sustainedNote.Data2));
+                                    }
+                                    sustainedNotes.Clear();
+                                }
                             }
                         }
-                        else if (midiEvent is TempoEvent tempoEvent)
+                        else if (midiEvent.MidiMessage is MetaMessage)
                         {
-                            tempo = tempoEvent.MicrosecondsPerQuarterNote;
-                            microsecondsPerTick = tempo / midiFile.DeltaTicksPerQuarterNote;
+                            if (((MetaMessage)midiEvent.MidiMessage).MetaType == MetaType.Tempo)
+                            {
+                                byte[] data = ((MetaMessage)midiEvent.MidiMessage).GetBytes();
+                                tempo = (data[0] << 16) | (data[1] << 8) | data[2];
+                                Console.WriteLine($"Tempo changed to {tempo} microseconds per quarter note");
+                                if (tempo == 0)
+                                {
+                                    tempo = 500000; // Reset to default tempo if tempo is zero
+                                    Console.WriteLine("Tempo was zero, reset to default tempo 500000 microseconds per quarter note");
+                                }
+                                microsecondsPerTick = tempo / sequence.Division;
+                            }
                         }
                     }
                 }
@@ -212,34 +230,42 @@ namespace MidiPianoPlayer
 
         private static void FastForward(int milliseconds)
         {
-            long ticksToAdvance = (long)(milliseconds * midiFile.DeltaTicksPerQuarterNote / (tempo / 1000000.0));
-            position += ticksToAdvance;
-            if (position >= events.Keys.Last())
+            double secondsToAdvance = milliseconds / 1000.0;
+            long ticksToAdvance = (long)(secondsToAdvance * sequence.Division * (1000000.0 / tempo));
+            long newPosition = position + ticksToAdvance;
+
+            if (newPosition >= events.Keys.Last())
             {
-                position = events.Keys.Last();
+                newPosition = events.Keys.Last() - 1; // Prevents jumping to the end
             }
+
+            Console.WriteLine($"Fast forwarding {milliseconds} ms (advancing {ticksToAdvance} ticks) from {position} to {newPosition}");
+            position = newPosition;
             currentTime = position;
-            // EnqueueDebugMessage($"Fast Forward to {currentTime}");
         }
 
         private static void Rewind(int milliseconds)
         {
-            long ticksToRewind = (long)(milliseconds * midiFile.DeltaTicksPerQuarterNote / (tempo / 1000000.0));
-            position -= ticksToRewind;
-            if (position < 0)
+            double secondsToRewind = milliseconds / 1000.0;
+            long ticksToRewind = (long)(secondsToRewind * sequence.Division * (1000000.0 / tempo));
+            long newPosition = position - ticksToRewind;
+
+            if (newPosition < 0)
             {
-                position = 0;
+                newPosition = 0;
             }
+
+            Console.WriteLine($"Rewinding {milliseconds} ms (rewinding {ticksToRewind} ticks) from {position} to {newPosition}");
+            position = newPosition;
             currentTime = position;
-            // EnqueueDebugMessage($"Rewind to {currentTime}");
         }
 
         private static int GetLoopMidiPortNumber(string portName)
         {
-            for (int i = 0; i < MidiOut.NumberOfDevices; i++)
+            for (int i = 0; i < OutputDevice.DeviceCount; i++)
             {
-                var caps = MidiOut.DeviceInfo(i);
-                if (caps.ProductName == portName)
+                MidiOutCaps caps = OutputDevice.GetDeviceCapabilities(i);
+                if (caps.name == portName)
                 {
                     return i;
                 }
