@@ -128,7 +128,8 @@ namespace MidiPianoPlayer
                         }
                     }
 
-                    playbackThread.Join(); // Ensure playback thread completes
+                    // Wait for playback thread to complete
+                    playbackThread.Join();
                     Console.WriteLine("MIDI playback finished.");
                 }
                 catch (Exception ex)
@@ -172,7 +173,7 @@ namespace MidiPianoPlayer
                 }
             }
 
-            while (!exitToMenu && currentTime < events.Keys.Last())
+            while (currentTime < events.Keys.Last())
             {
                 if (isPaused)
                 {
@@ -202,49 +203,52 @@ namespace MidiPianoPlayer
                         {
                             int channel = channelMessage.MidiChannel;
 
-                            if (channelMessage.Command == ChannelCommand.NoteOn && channelMessage.Data2 > 0)
+                            if (!IsPercussion(channelMessage))
                             {
-                                // Check if there's already an active note on this channel
-                                if (activeNotes.ContainsKey(channel))
+                                if (channelMessage.Command == ChannelCommand.NoteOn && channelMessage.Data2 > 0)
                                 {
-                                    // Check if the note is currently playing (data2 > 0 means Note On)
-                                    foreach (var note in activeNotes[channel].ToList())
+                                    // Check if there's already an active note on this channel
+                                    if (activeNotes.ContainsKey(channel))
                                     {
-                                        if (note.Data1 == channelMessage.Data1)
+                                        // Check if the note is currently playing (data2 > 0 means Note On)
+                                        foreach (var note in activeNotes[channel].ToList())
                                         {
-                                            // Send a Note Off for the current note to prevent stacking
-                                            outputDevice.Send(new ChannelMessage(ChannelCommand.NoteOff, note.MidiChannel, note.Data1, note.Data2));
-                                            activeNotes[channel].Remove(note);
+                                            if (note.Data1 == channelMessage.Data1)
+                                            {
+                                                // Send a Note Off for the current note to prevent stacking
+                                                outputDevice.Send(new ChannelMessage(ChannelCommand.NoteOff, note.MidiChannel, note.Data1, note.Data2));
+                                                activeNotes[channel].Remove(note);
+                                            }
+                                        }
+                                    }
+
+                                    // Send the new Note On message
+                                    outputDevice.Send(channelMessage);
+
+                                    // Add the note to active notes
+                                    if (!activeNotes.ContainsKey(channel))
+                                    {
+                                        activeNotes[channel] = new List<ChannelMessage>();
+                                    }
+                                    activeNotes[channel].Add(channelMessage);
+                                }
+                                else if (channelMessage.Command == ChannelCommand.NoteOff || (channelMessage.Command == ChannelCommand.NoteOn && channelMessage.Data2 == 0))
+                                {
+                                    // Remove the note from active notes when it ends
+                                    if (activeNotes.ContainsKey(channel))
+                                    {
+                                        var noteToRemove = activeNotes[channel].FirstOrDefault(n => n.Data1 == channelMessage.Data1);
+                                        if (noteToRemove != null)
+                                        {
+                                            outputDevice.Send(channelMessage);
+                                            activeNotes[channel].Remove(noteToRemove);
                                         }
                                     }
                                 }
-
-                                // Send the new Note On message
-                                outputDevice.Send(channelMessage);
-
-                                // Add the note to active notes
-                                if (!activeNotes.ContainsKey(channel))
+                                else if (channelMessage.Command == ChannelCommand.Controller && channelMessage.Data1 == 64)
                                 {
-                                    activeNotes[channel] = new List<ChannelMessage>();
+                                    // Sustain pedal logic (if needed)
                                 }
-                                activeNotes[channel].Add(channelMessage);
-                            }
-                            else if (channelMessage.Command == ChannelCommand.NoteOff || (channelMessage.Command == ChannelCommand.NoteOn && channelMessage.Data2 == 0))
-                            {
-                                // Remove the note from active notes when it ends
-                                if (activeNotes.ContainsKey(channel))
-                                {
-                                    var noteToRemove = activeNotes[channel].FirstOrDefault(n => n.Data1 == channelMessage.Data1);
-                                    if (noteToRemove != null)
-                                    {
-                                        outputDevice.Send(channelMessage);
-                                        activeNotes[channel].Remove(noteToRemove);
-                                    }
-                                }
-                            }
-                            else if (channelMessage.Command == ChannelCommand.Controller && channelMessage.Data1 == 64)
-                            {
-                                // Sustain pedal logic (if needed)
                             }
                         }
                         else if (midiEvent.MidiMessage is MetaMessage)
@@ -282,7 +286,18 @@ namespace MidiPianoPlayer
 
             // Ensure all notes are turned off when playback ends
             TurnOffAllNotes();
+
+            // Signal the main thread to return to the menu
+            exitToMenu = true;
+            pauseEvent.Set();
         }
+
+        private static bool IsPercussion(ChannelMessage channelMessage)
+        {
+            // Check if the MIDI channel is for percussion
+            return channelMessage.MidiChannel >= 9 && channelMessage.MidiChannel <= 16;
+        }
+
 
         private static void FastForward(int milliseconds)
         {
