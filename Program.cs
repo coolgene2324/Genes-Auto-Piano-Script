@@ -22,6 +22,7 @@ namespace MidiPianoPlayer
         static Thread playbackThread;
         static OutputDevice outputDevice;
         static Dictionary<int, List<ChannelMessage>> activeNotes;
+        static readonly object speedLock = new object(); // Lock object for thread safety
 
         [STAThread]
         static void Main(string[] args)
@@ -74,7 +75,7 @@ namespace MidiPianoPlayer
 
                     // Initialize MIDI output to LoopBe1 virtual port
                     outputDevice = new OutputDevice(GetLoopMidiPortNumber("LoopBe Internal MIDI"));
-                    Console.WriteLine("Press PageUp to pause/resume. Press End to fast forward 5 seconds, Home to rewind 5 seconds, Escape to return to menu.");
+                    Console.WriteLine("Press Delete to pause/resume. Press End to fast forward 5 seconds, Home to rewind 5 seconds, Pageup to increase speed by 10%, Pagedown to decrease speed by 10%, Escape to return to menu.");
 
                     playbackThread = new Thread(() => PlayMidiFile());
                     playbackThread.Start();
@@ -82,7 +83,7 @@ namespace MidiPianoPlayer
                     while (playbackThread.IsAlive)
                     {
                         var key = Console.ReadKey(true).Key;
-                        if (key == ConsoleKey.PageUp)
+                        if (key == ConsoleKey.Delete)
                         {
                             isPaused = !isPaused;
                             Console.WriteLine(isPaused ? "Paused" : "Resumed");
@@ -91,7 +92,7 @@ namespace MidiPianoPlayer
                                 pauseEvent.Set();
                             }
                         }
-                        else if (key == ConsoleKey.End)
+                        else if (key == ConsoleKey.Home)
                         {
                             isFastForwardingOrRewinding = true;
                             long previousTime = currentTime;
@@ -100,14 +101,21 @@ namespace MidiPianoPlayer
                             pauseEvent.Set();
                             Console.WriteLine($"Fast Forward from {previousTime / sequence.Division * (tempo / 1000000.0):F3} seconds to {currentTime / sequence.Division * (tempo / 1000000.0):F3} seconds");
                         }
-                        else if (key == ConsoleKey.Home)
+                        else if (key == ConsoleKey.PageUp)
                         {
-                            isFastForwardingOrRewinding = true;
-                            long previousTime = currentTime;
-                            Rewind(5000);
-                            isFastForwardingOrRewinding = false;
-                            pauseEvent.Set();
-                            Console.WriteLine($"Rewind from {previousTime / sequence.Division * (tempo / 1000000.0):F3} seconds to {currentTime / sequence.Division * (tempo / 1000000.0):F3} seconds");
+                            lock (speedLock)
+                            {
+                                playbackSpeed *= 1.1;
+                                Console.WriteLine($"Playback speed increased to {playbackSpeed:F2}x");
+                            }
+                        }
+                        else if (key == ConsoleKey.PageDown)
+                        {
+                            lock (speedLock)
+                            {
+                                playbackSpeed /= 1.1;
+                                Console.WriteLine($"Playback speed decreased to {playbackSpeed:F2}x");
+                            }
                         }
                         else if (key == ConsoleKey.Escape)
                         {
