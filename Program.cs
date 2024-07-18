@@ -14,14 +14,17 @@ namespace MidiPianoPlayer
         static double playbackSpeed = 1.0;
         static long position = 0;
         static long currentTime = 0;
-        static double tempo = 500000; // Default tempo in microsec per quarter note (currently 120 BPM)
+        static double tempo = 500000; // Default tempo
         static SortedList<long, List<MidiEvent>> events;
         static bool exitToMenu = false;
         static bool isFastForwardingOrRewinding = false;
+        static bool isLegitMode = false; // New variable for legit mode
+        static Random random = new Random(); // New random instance
         static Sequence sequence;
         static Thread playbackThread;
         static OutputDevice outputDevice;
         static Dictionary<int, List<ChannelMessage>> activeNotes;
+        static readonly object speedLock = new object(); // Lock object for thread safety
 
         [STAThread]
         static void Main(string[] args)
@@ -72,9 +75,9 @@ namespace MidiPianoPlayer
                     sequence = new Sequence();
                     sequence.Load(midiFilePath);
 
-                    // Initialize MIDI output to LoopBe1 virtual port
-                    outputDevice = new OutputDevice(GetLoopMidiPortNumber("LoopBe Internal MIDI"));
-                    Console.WriteLine("Press PageUp to pause/resume. Press End to fast forward 5 seconds, Home to rewind 5 seconds, Escape to return to menu.");
+                    // Initialize MIDI output to loopMIDI virtual port
+                    outputDevice = new OutputDevice(GetLoopMidiPortNumber("loopMIDI Port"));
+                    Console.WriteLine("Press Delete to pause/resume. Press End to fast forward 5 seconds, Home to rewind 5 seconds, Pageup to increase speed by 10%, Pagedown to decrease speed by 10%, Escape to return to menu, Insert to toggle legit mode.");
 
                     playbackThread = new Thread(() => PlayMidiFile());
                     playbackThread.Start();
@@ -82,7 +85,7 @@ namespace MidiPianoPlayer
                     while (playbackThread.IsAlive)
                     {
                         var key = Console.ReadKey(true).Key;
-                        if (key == ConsoleKey.PageUp)
+                        if (key == ConsoleKey.Delete)
                         {
                             isPaused = !isPaused;
                             Console.WriteLine(isPaused ? "Paused" : "Resumed");
@@ -100,6 +103,22 @@ namespace MidiPianoPlayer
                             pauseEvent.Set();
                             Console.WriteLine($"Fast Forward from {previousTime / sequence.Division * (tempo / 1000000.0):F3} seconds to {currentTime / sequence.Division * (tempo / 1000000.0):F3} seconds");
                         }
+                        else if (key == ConsoleKey.PageUp)
+                        {
+                            lock (speedLock)
+                            {
+                                playbackSpeed *= 1.1;
+                                Console.WriteLine($"Playback speed increased to {playbackSpeed:F2}x");
+                            }
+                        }
+                        else if (key == ConsoleKey.PageDown)
+                        {
+                            lock (speedLock)
+                            {
+                                playbackSpeed /= 1.1;
+                                Console.WriteLine($"Playback speed decreased to {playbackSpeed:F2}x");
+                            }
+                        }
                         else if (key == ConsoleKey.Home)
                         {
                             isFastForwardingOrRewinding = true;
@@ -108,6 +127,11 @@ namespace MidiPianoPlayer
                             isFastForwardingOrRewinding = false;
                             pauseEvent.Set();
                             Console.WriteLine($"Rewind from {previousTime / sequence.Division * (tempo / 1000000.0):F3} seconds to {currentTime / sequence.Division * (tempo / 1000000.0):F3} seconds");
+                        }
+                        else if (key == ConsoleKey.Insert)
+                        {
+                            isLegitMode = !isLegitMode;
+                            Console.WriteLine(isLegitMode ? "Legit mode enabled" : "Legit mode disabled");
                         }
                         else if (key == ConsoleKey.Escape)
                         {
@@ -120,7 +144,8 @@ namespace MidiPianoPlayer
                         }
                     }
 
-                    playbackThread.Join(); // Ensure playback thread completes
+                    // Wait for playback thread to complete
+                    playbackThread.Join();
                     Console.WriteLine("MIDI playback finished.");
                 }
                 catch (Exception ex)
@@ -164,7 +189,7 @@ namespace MidiPianoPlayer
                 }
             }
 
-            while (!exitToMenu && currentTime < events.Keys.Last())
+            while (currentTime < events.Keys.Last())
             {
                 if (isPaused)
                 {
@@ -186,6 +211,13 @@ namespace MidiPianoPlayer
                     }
                 }
 
+                if (exitToMenu)
+                {
+                    // If exit to menu, break the playback loop
+                    TurnOffAllNotes();
+                    break;
+                }
+
                 if (events.TryGetValue(currentTime, out var midiEvents))
                 {
                     foreach (MidiEvent midiEvent in midiEvents)
@@ -194,49 +226,84 @@ namespace MidiPianoPlayer
                         {
                             int channel = channelMessage.MidiChannel;
 
-                            if (channelMessage.Command == ChannelCommand.NoteOn && channelMessage.Data2 > 0)
+                            if (!IsPercussion(channelMessage))
                             {
-                                // Check if there's already an active note on this channel
-                                if (activeNotes.ContainsKey(channel))
+                                if (channelMessage.Command == ChannelCommand.NoteOn && channelMessage.Data2 > 0)
                                 {
-                                    // Check if the note is currently playing (data2 > 0 means Note On)
-                                    foreach (var note in activeNotes[channel].ToList())
+                                    // Legit mode filter for simultaneously played notes
+                                    if (isLegitMode)
                                     {
-                                        if (note.Data1 == channelMessage.Data1)
+                                        var simultaneousNotes = midiEvents
+                                            .Where(e => e.MidiMessage is ChannelMessage msg && msg.MidiChannel == channel && msg.Command == ChannelCommand.NoteOn && msg.Data2 > 0)
+                                            .Select(e => e.MidiMessage as ChannelMessage)
+                                            .ToList();
+
+                                        if (simultaneousNotes.Count > 1)
                                         {
-                                            // Send a Note Off for the current note to prevent stacking
-                                            outputDevice.Send(new ChannelMessage(ChannelCommand.NoteOff, note.MidiChannel, note.Data1, note.Data2));
-                                            activeNotes[channel].Remove(note);
+                                            var highestVelocityNote = simultaneousNotes.OrderByDescending(n => n.Data2).First();
+                                            simultaneousNotes.Remove(highestVelocityNote);
+
+                                            foreach (var note in simultaneousNotes)
+                                            {
+                                                midiEvents.RemoveAll(e => e.MidiMessage == note);
+                                            }
+                                        }
+                                    }
+
+                                    // Check if there's already an active note on this channel
+                                    if (activeNotes.ContainsKey(channel))
+                                    {
+                                        // Check if the note is currently playing (data2 > 0 means Note On)
+                                        foreach (var note in activeNotes[channel].ToList())
+                                        {
+                                            if (note.Data1 == channelMessage.Data1)
+                                            {
+                                                // Send a Note Off for the current note to prevent stacking
+                                                outputDevice.Send(new ChannelMessage(ChannelCommand.NoteOff, note.MidiChannel, note.Data1, note.Data2));
+                                                activeNotes[channel].Remove(note);
+
+                                                // Ensure there's a gap before sending the next Note On
+                                                if (isLegitMode)
+                                                {
+                                                    Thread.Sleep(random.Next(5, 50));
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    // Introduce random delay in legit mode
+                                    if (isLegitMode)
+                                    {
+                                        Thread.Sleep(random.Next(5, 50));
+                                    }
+
+                                    // Send the new Note On message
+                                    outputDevice.Send(channelMessage);
+
+                                    // Add the note to active notes
+                                    if (!activeNotes.ContainsKey(channel))
+                                    {
+                                        activeNotes[channel] = new List<ChannelMessage>();
+                                    }
+                                    activeNotes[channel].Add(channelMessage);
+                                }
+                                else if (channelMessage.Command == ChannelCommand.NoteOff || (channelMessage.Command == ChannelCommand.NoteOn && channelMessage.Data2 == 0))
+                                {
+                                    // Remove the note from active notes when it ends
+                                    if (activeNotes.ContainsKey(channel))
+                                    {
+                                        var noteToRemove = activeNotes[channel].FirstOrDefault(n => n.Data1 == channelMessage.Data1);
+                                        if (noteToRemove != null)
+                                        {
+                                            outputDevice.Send(channelMessage);
+                                            activeNotes[channel].Remove(noteToRemove);
                                         }
                                     }
                                 }
-
-                                // Send the new Note On message
-                                outputDevice.Send(channelMessage);
-
-                                // Add the note to active notes
-                                if (!activeNotes.ContainsKey(channel))
+                                else if (channelMessage.Command == ChannelCommand.Controller && channelMessage.Data1 == 64)
                                 {
-                                    activeNotes[channel] = new List<ChannelMessage>();
+                                    // Sustain pedal logic (if needed)
                                 }
-                                activeNotes[channel].Add(channelMessage);
-                            }
-                            else if (channelMessage.Command == ChannelCommand.NoteOff || (channelMessage.Command == ChannelCommand.NoteOn && channelMessage.Data2 == 0))
-                            {
-                                // Remove the note from active notes when it ends
-                                if (activeNotes.ContainsKey(channel))
-                                {
-                                    var noteToRemove = activeNotes[channel].FirstOrDefault(n => n.Data1 == channelMessage.Data1);
-                                    if (noteToRemove != null)
-                                    {
-                                        outputDevice.Send(channelMessage);
-                                        activeNotes[channel].Remove(noteToRemove);
-                                    }
-                                }
-                            }
-                            else if (channelMessage.Command == ChannelCommand.Controller && channelMessage.Data1 == 64)
-                            {
-                                // Sustain pedal logic (if needed)
                             }
                         }
                         else if (midiEvent.MidiMessage is MetaMessage)
@@ -274,6 +341,10 @@ namespace MidiPianoPlayer
 
             // Ensure all notes are turned off when playback ends
             TurnOffAllNotes();
+
+            // Signal the main thread to return to the menu
+            exitToMenu = true;
+            pauseEvent.Set();
         }
 
         private static void FastForward(int milliseconds)
@@ -324,6 +395,12 @@ namespace MidiPianoPlayer
                 }
                 kvp.Value.Clear();
             }
+        }
+
+        private static bool IsPercussion(ChannelMessage channelMessage)
+        {
+            // Check if the MIDI channel is for percussion
+            return channelMessage.MidiChannel >= 9 && channelMessage.MidiChannel <= 16;
         }
 
         private static int GetLoopMidiPortNumber(string portName)

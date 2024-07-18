@@ -53,6 +53,14 @@
               "target": "Package",
               "version": "[2.2.1, )"
             },
+            "NHotkey": {
+              "target": "Package",
+              "version": "[3.0.0, )"
+            },
+            "NHotkey.WindowsForms": {
+              "target": "Package",
+              "version": "[3.0.0, )"
+            },
             "Sanford.Multimedia.Midi": {
               "target": "Package",
               "version": "[6.6.2, )"

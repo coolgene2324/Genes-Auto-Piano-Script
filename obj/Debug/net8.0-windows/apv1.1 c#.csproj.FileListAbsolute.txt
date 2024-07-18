@@ -23,3 +23,7 @@ C:\Users\coolg\source\repos\apv1.1 c#\apv1.1 c#\obj\Debug\net8.0-windows\refint\
 C:\Users\coolg\source\repos\apv1.1 c#\apv1.1 c#\obj\Debug\net8.0-windows\apv1.1 c#.pdb
 C:\Users\coolg\source\repos\apv1.1 c#\apv1.1 c#\obj\Debug\net8.0-windows\apv1.1 c#.genruntimeconfig.cache
 C:\Users\coolg\source\repos\apv1.1 c#\apv1.1 c#\obj\Debug\net8.0-windows\ref\apv1.1 c#.dll
+C:\Users\coolg\source\repos\apv1.1 c#\apv1.1 c#\obj\Debug\net8.0-windows\MidiPianoPlayer.Properties.Resources.resources
+C:\Users\coolg\source\repos\apv1.1 c#\apv1.1 c#\obj\Debug\net8.0-windows\apv1.1 c#.csproj.GenerateResource.cache
+C:\Users\coolg\source\repos\apv1.1 c#\apv1.1 c#\bin\Debug\net8.0-windows\NHotkey.dll
+C:\Users\coolg\source\repos\apv1.1 c#\apv1.1 c#\bin\Debug\net8.0-windows\NHotkey.WindowsForms.dll

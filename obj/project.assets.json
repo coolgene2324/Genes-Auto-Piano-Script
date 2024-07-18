@@ -157,6 +157,38 @@
           }
         }
       },
+      "NHotkey/3.0.0": {
+        "type": "package",
+        "compile": {
+          "lib/net6.0-windows7.0/NHotkey.dll": {
+            "related": ".pdb"
+          }
+        },
+        "runtime": {
+          "lib/net6.0-windows7.0/NHotkey.dll": {
+            "related": ".pdb"
+          }
+        }
+      },
+      "NHotkey.WindowsForms/3.0.0": {
+        "type": "package",
+        "dependencies": {
+          "NHotkey": "3.0.0"
+        },
+        "compile": {
+          "lib/net6.0-windows7.0/NHotkey.WindowsForms.dll": {
+            "related": ".pdb"
+          }
+        },
+        "runtime": {
+          "lib/net6.0-windows7.0/NHotkey.WindowsForms.dll": {
+            "related": ".pdb"
+          }
+        },
+        "frameworkReferences": [
+          "Microsoft.WindowsDesktop.App.WindowsForms"
+        ]
+      },
       "Sanford.Multimedia.Midi/6.6.2": {
         "type": "package",
         "compile": {
@@ -393,6 +425,36 @@
         "naudio.winmm.nuspec"
       ]
     },
+    "NHotkey/3.0.0": {
+      "sha512": "IEghs0QqWsQYH0uUmvIl0Ye6RaebWRh38eB6ToOkDnQucTYRGFOgtig0gSxlwCszTilYFz3n1ZuY762x+kDR3A==",
+      "type": "package",
+      "path": "nhotkey/3.0.0",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "lib/net462/NHotkey.dll",
+        "lib/net462/NHotkey.pdb",
+        "lib/net6.0-windows7.0/NHotkey.dll",
+        "lib/net6.0-windows7.0/NHotkey.pdb",
+        "nhotkey.3.0.0.nupkg.sha512",
+        "nhotkey.nuspec"
+      ]
+    },
+    "NHotkey.WindowsForms/3.0.0": {
+      "sha512": "54LTsVAqIF1FSqC9Lwr98XkvQ5GV5Y5nNR4KVbCk85hP5sTOLcsVuN/3NCYNxi7ixud6Ciek+FjFyGsFnIxQ3Q==",
+      "type": "package",
+      "path": "nhotkey.windowsforms/3.0.0",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "lib/net462/NHotkey.WindowsForms.dll",
+        "lib/net462/NHotkey.WindowsForms.pdb",
+        "lib/net6.0-windows7.0/NHotkey.WindowsForms.dll",
+        "lib/net6.0-windows7.0/NHotkey.WindowsForms.pdb",
+        "nhotkey.windowsforms.3.0.0.nupkg.sha512",
+        "nhotkey.windowsforms.nuspec"
+      ]
+    },
     "Sanford.Multimedia.Midi/6.6.2": {
       "sha512": "SZ2SFJbig5i7SB8Li7z9ZAwceVym9U7Gj1aQy1sRXuwmyL4XqwfJ68dCpix2XFhmsyfZPhtEG1xZYnlad8D9lA==",
       "type": "package",
@@ -511,6 +573,8 @@
   "projectFileDependencyGroups": {
     "net8.0-windows7.0": [
       "NAudio >= 2.2.1",
+      "NHotkey >= 3.0.0",
+      "NHotkey.WindowsForms >= 3.0.0",
       "Sanford.Multimedia.Midi >= 6.6.2"
     ]
   },
@@ -566,6 +630,14 @@
           "NAudio": {
             "target": "Package",
             "version": "[2.2.1, )"
+          },
+          "NHotkey": {
+            "target": "Package",
+            "version": "[3.0.0, )"
+          },
+          "NHotkey.WindowsForms": {
+            "target": "Package",
+            "version": "[3.0.0, )"
           },
           "Sanford.Multimedia.Midi": {
             "target": "Package",

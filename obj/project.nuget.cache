@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "raAN+CSa9E0=",
+  "dgSpecHash": "RfQhuBVvKLc=",
   "success": true,
   "projectFilePath": "C:\\Users\\coolg\\source\\repos\\apv1.1 c#\\apv1.1 c#\\apv1.1 c#.csproj",
   "expectedPackageFiles": [
@@ -13,6 +13,8 @@
     "C:\\Users\\coolg\\.nuget\\packages\\naudio.wasapi\\2.2.1\\naudio.wasapi.2.2.1.nupkg.sha512",
     "C:\\Users\\coolg\\.nuget\\packages\\naudio.winforms\\2.2.1\\naudio.winforms.2.2.1.nupkg.sha512",
     "C:\\Users\\coolg\\.nuget\\packages\\naudio.winmm\\2.2.1\\naudio.winmm.2.2.1.nupkg.sha512",
+    "C:\\Users\\coolg\\.nuget\\packages\\nhotkey\\3.0.0\\nhotkey.3.0.0.nupkg.sha512",
+    "C:\\Users\\coolg\\.nuget\\packages\\nhotkey.windowsforms\\3.0.0\\nhotkey.windowsforms.3.0.0.nupkg.sha512",
     "C:\\Users\\coolg\\.nuget\\packages\\sanford.multimedia.midi\\6.6.2\\sanford.multimedia.midi.6.6.2.nupkg.sha512",
     "C:\\Users\\coolg\\.nuget\\packages\\system.security.accesscontrol\\4.7.0\\system.security.accesscontrol.4.7.0.nupkg.sha512",
     "C:\\Users\\coolg\\.nuget\\packages\\system.security.principal.windows\\4.7.0\\system.security.principal.windows.4.7.0.nupkg.sha512"
