@@ -4,15 +4,15 @@
 winexe
 C#
 .cs
-C:\Users\coolg\source\repos\GAPS\WpfApp1\obj\Release\
+C:\Users\coolg\source\repos\GAPS\WpfApp1\obj\Debug\
 WpfApp1
 none
 false
-TRACE
+DEBUG;TRACE
 C:\Users\coolg\source\repos\GAPS\WpfApp1\App.xaml
 1219584333
 
-7689436431
+7-1121610161
 16-1968101437
 MainWindow.xaml;
 

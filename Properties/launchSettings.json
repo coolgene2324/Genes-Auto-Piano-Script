@@ -1,8 +1,0 @@
-{
-  "profiles": {
-    "apv1.1 c#": {
-      "commandName": "Project",
-      "nativeDebugging": false
-    }
-  }
-}

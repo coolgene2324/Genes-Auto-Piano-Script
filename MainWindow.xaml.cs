@@ -2,6 +2,7 @@
 using System.IO;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Media;
 using NHotkey;
 using NHotkey.Wpf;
 
@@ -27,7 +28,7 @@ namespace WpfApp1
             HotkeyManager.Current.AddOrReplace("IncreaseSpeed", Key.PageUp, ModifierKeys.None, midiPlayer.HotkeyPressed);
             HotkeyManager.Current.AddOrReplace("DecreaseSpeed", Key.PageDown, ModifierKeys.None, midiPlayer.HotkeyPressed);
             HotkeyManager.Current.AddOrReplace("ToggleLegitMode", Key.Insert, ModifierKeys.None, midiPlayer.HotkeyPressed);
-            HotkeyManager.Current.AddOrReplace("ExitToMenu", Key.Escape, ModifierKeys.None, midiPlayer.HotkeyPressed);
+            HotkeyManager.Current.AddOrReplace("EndSong", Key.Escape, ModifierKeys.None, midiPlayer.HotkeyPressed);
             HotkeyManager.Current.AddOrReplace("DisableSustain", Key.Multiply, ModifierKeys.None, midiPlayer.HotkeyPressed);
         }
 
@@ -82,9 +83,9 @@ namespace WpfApp1
             midiPlayer.DisableSustain();
         }
 
-        private void ExitToMenuButton_Click(object sender, RoutedEventArgs e)
+        private void EndSongButton_Click(object sender, RoutedEventArgs e)
         {
-            midiPlayer.ExitToMenu();
+            midiPlayer.EndSong();
         }
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)

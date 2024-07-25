@@ -1,8 +1,0 @@
-C:\Users\coolg\source\repos\apv1.1 c#\apv1.1 c#\obj\Debug\net8.0-windows\apv1.1 c#.csproj.AssemblyReference.cache
-C:\Users\coolg\source\repos\apv1.1 c#\apv1.1 c#\obj\Debug\net8.0-windows\MidiPianoPlayer.Properties.Resources.resources
-C:\Users\coolg\source\repos\apv1.1 c#\apv1.1 c#\obj\Debug\net8.0-windows\apv1.1 c#.csproj.GenerateResource.cache
-C:\Users\coolg\source\repos\apv1.1 c#\apv1.1 c#\obj\Debug\net8.0-windows\apv1.1 c#.GeneratedMSBuildEditorConfig.editorconfig
-C:\Users\coolg\source\repos\apv1.1 c#\apv1.1 c#\obj\Debug\net8.0-windows\apv1.1 c#.AssemblyInfoInputs.cache
-C:\Users\coolg\source\repos\apv1.1 c#\apv1.1 c#\obj\Debug\net8.0-windows\apv1.1 c#.AssemblyInfo.cs
-C:\Users\coolg\source\repos\apv1.1 c#\apv1.1 c#\obj\Debug\net8.0-windows\apv1.1 c#.csproj.CoreCompileInputs.cache
-C:\Users\coolg\source\repos\apv1.1 c#\apv1.1 c#\obj\Debug\net8.0-windows\apv1.1 c#.sourcelink.json
