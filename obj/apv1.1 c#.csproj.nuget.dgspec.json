@@ -26,6 +26,7 @@
         ],
         "sources": {
           "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "C:\\Program Files\\dotnet\\library-packs": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
@@ -49,21 +50,29 @@
         "net8.0-windows7.0": {
           "targetAlias": "net8.0-windows",
           "dependencies": {
+            "Microsoft.Win32.Registry": {
+              "target": "Package",
+              "version": "[5.0.0, )"
+            },
             "NAudio": {
               "target": "Package",
               "version": "[2.2.1, )"
             },
             "NHotkey": {
               "target": "Package",
-              "version": "[3.0.0, )"
+              "version": "[2.0.1, )"
             },
-            "NHotkey.WindowsForms": {
+            "NHotkey.Wpf": {
               "target": "Package",
-              "version": "[3.0.0, )"
+              "version": "[2.0.1, )"
             },
             "Sanford.Multimedia.Midi": {
               "target": "Package",
               "version": "[6.6.2, )"
+            },
+            "WindowsInput": {
+              "target": "Package",
+              "version": "[6.4.1, )"
             }
           },
           "imports": [
@@ -85,7 +94,7 @@
               "privateAssets": "none"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.302/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.303/PortableRuntimeIdentifierGraph.json"
         }
       }
     }

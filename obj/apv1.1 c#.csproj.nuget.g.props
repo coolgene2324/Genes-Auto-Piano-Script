@@ -13,4 +13,14 @@
     <SourceRoot Include="C:\Users\coolg\.nuget\packages\" />
     <SourceRoot Include="C:\Program Files (x86)\Microsoft Visual Studio\Shared\NuGetPackages\" />
   </ItemGroup>
+  <ItemGroup Condition=" '$(ExcludeRestorePackageImports)' != 'true' ">
+    <Content Include="$(NuGetPackageRoot)windowsinput\6.4.1\contentFiles\any\net6.0-windows7.0\.nuget\mouse-keyboard-hook-logo.png" Condition="Exists('$(NuGetPackageRoot)windowsinput\6.4.1\contentFiles\any\net6.0-windows7.0\.nuget\mouse-keyboard-hook-logo.png')">
+      <NuGetPackageId>WindowsInput</NuGetPackageId>
+      <NuGetPackageVersion>6.4.1</NuGetPackageVersion>
+      <NuGetItemType>Content</NuGetItemType>
+      <Pack>false</Pack>
+      <Private>False</Private>
+      <Link>.nuget\mouse-keyboard-hook-logo.png</Link>
+    </Content>
+  </ItemGroup>
 </Project>
