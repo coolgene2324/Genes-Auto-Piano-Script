@@ -3,10 +3,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
-using System.Windows.Input;
 using Sanford.Multimedia.Midi;
 using NHotkey;
-using NHotkey.Wpf;
 
 namespace WpfApp1
 {
@@ -61,6 +59,9 @@ namespace WpfApp1
                     mainWindow.StatusTextBlock.Text = "Playing: " + Path.GetFileName(midiFilePath);
                     mainWindow.PlaybackSpeedTextBlock.Text = $"Playback Speed: {playbackSpeed:F2}x";
                     mainWindow.CurrentTimeTextBlock.Text = $"0:00 / {GetFormattedTime(sequence.GetLength())}";
+                    mainWindow.KeySignatureTextBlock.Text = "Key Signature: Unknown";
+                    mainWindow.TimeSignatureTextBlock.Text = "Time Signature: Unknown";
+                    mainWindow.LyricsTextBlock.Text = "Lyrics: No Lyrics Detected";
                 });
 
                 playbackThread = new Thread(() => PlayMidiFileThread());
@@ -68,6 +69,7 @@ namespace WpfApp1
             }
             catch (Exception ex)
             {
+                LogError($"Error in PlayMidiFile: {ex.Message}");
                 mainWindow.Dispatcher.Invoke(() =>
                 {
                     mainWindow.StatusTextBlock.Text = $"Error: {ex.Message}";
@@ -79,6 +81,15 @@ namespace WpfApp1
         {
             TimeSpan timeSpan = TimeSpan.FromSeconds(ticks / (sequence.Division * (1000000.0 / tempo)));
             return $"{timeSpan.Minutes:D2}:{timeSpan.Seconds:D2}";
+        }
+
+        private void LogError(string message)
+        {
+            string logFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "log.txt");
+            using (StreamWriter writer = new StreamWriter(logFilePath, true))
+            {
+                writer.WriteLine($"{DateTime.Now}: {message}");
+            }
         }
 
         public void PauseResume()
@@ -229,6 +240,7 @@ namespace WpfApp1
                 {
                     // If end song, break the playback loop
                     TurnOffAllNotes();
+                    outputDevice.Dispose();
                     break;
                 }
 
@@ -294,33 +306,70 @@ namespace WpfApp1
                                         }
                                     }
                                 }
-                                else if (channelMessage.Command == ChannelCommand.Controller && channelMessage.Data1 == 64)
+                                else if (channelMessage.Command == ChannelCommand.Controller)
                                 {
-                                    HandleSustainPedal(channelMessage, channel);
+                                    // Handle all control change events
+                                    if (channelMessage.Data1 < 0 || channelMessage.Data1 > 127)
+                                    {
+                                        LogError($"Invalid control change value: Data1={channelMessage.Data1}");
+                                        continue; // Skip this message
+                                    }
+                                    outputDevice.Send(channelMessage);
+                                    if (channelMessage.Data1 == 64)
+                                    {
+                                        HandleSustainPedal(channelMessage, channel);
+                                    }
                                 }
                             }
                         }
-                        else if (midiEvent.MidiMessage is MetaMessage)
+                        else if (midiEvent.MidiMessage is MetaMessage metaMessage)
                         {
-                            // Handle tempo changes if needed
-                            MetaMessage metaMessage = midiEvent.MidiMessage as MetaMessage;
-                            if (metaMessage.MetaType == MetaType.Tempo)
+                            // Handle meta messages
+                            switch (metaMessage.MetaType)
                             {
-                                byte[] data = metaMessage.GetBytes(); // Use GetBytes() method instead of GetData()
-                                tempo = (data[0] << 16) | (data[1] << 8) | data[2];
-                                mainWindow.Dispatcher.Invoke(() =>
-                                {
-                                    mainWindow.TempoTextBlock.Text = $"Tempo: {60000000 / tempo} BPM";
-                                });
-                                if (tempo == 0)
-                                {
-                                    tempo = 500000; // Reset to default tempo if tempo is zero
+                                case MetaType.Tempo:
+                                    byte[] tempoData = metaMessage.GetBytes();
+                                    tempo = (tempoData[0] << 16) | (tempoData[1] << 8) | tempoData[2];
                                     mainWindow.Dispatcher.Invoke(() =>
                                     {
-                                        mainWindow.TempoTextBlock.Text = "Tempo: 120 BPM (Default)";
+                                        mainWindow.TempoTextBlock.Text = $"Tempo: {60000000 / tempo} BPM";
                                     });
-                                }
-                                microsecondsPerTick = tempo / sequence.Division;
+                                    if (tempo == 0)
+                                    {
+                                        tempo = 500000; // Reset to default tempo if tempo is zero
+                                        mainWindow.Dispatcher.Invoke(() =>
+                                        {
+                                            mainWindow.TempoTextBlock.Text = "Tempo: 120 BPM (Default)";
+                                        });
+                                    }
+                                    microsecondsPerTick = tempo / sequence.Division;
+                                    break;
+                                case MetaType.KeySignature:
+                                    byte[] keySigData = metaMessage.GetBytes();
+                                    string keySignature = GetKeySignature(keySigData);
+                                    mainWindow.Dispatcher.Invoke(() =>
+                                    {
+                                        mainWindow.KeySignatureTextBlock.Text = $"Key Signature: {keySignature}";
+                                    });
+                                    break;
+                                case MetaType.TimeSignature:
+                                    byte[] timeSigData = metaMessage.GetBytes();
+                                    string timeSignature = $"{timeSigData[0]}/{Math.Pow(2, timeSigData[1])}";
+                                    mainWindow.Dispatcher.Invoke(() =>
+                                    {
+                                        mainWindow.TimeSignatureTextBlock.Text = $"Time Signature: {timeSignature}";
+                                    });
+                                    break;
+                                case MetaType.Lyric:
+                                    byte[] lyricData = metaMessage.GetBytes();
+                                    string lyrics = System.Text.Encoding.Default.GetString(lyricData);
+                                    mainWindow.Dispatcher.Invoke(() =>
+                                    {
+                                        mainWindow.LyricsTextBlock.Text = $"Lyrics: {lyrics}";
+                                    });
+                                    break;
+                                default:
+                                    break;
                             }
                         }
                     }
@@ -443,6 +492,33 @@ namespace WpfApp1
                 }
             }
             throw new Exception($"Virtual MIDI port '{portName}' not found.");
+        }
+
+        private string GetKeySignature(byte[] data)
+        {
+            int key = data[0];
+            int scale = data[1];
+            string keyName = key switch
+            {
+                0 => "C",
+                1 => "G",
+                2 => "D",
+                3 => "A",
+                4 => "E",
+                5 => "B",
+                6 => "F#",
+                7 => "C#",
+                -1 => "F",
+                -2 => "Bb",
+                -3 => "Eb",
+                -4 => "Ab",
+                -5 => "Db",
+                -6 => "Gb",
+                -7 => "Cb",
+                _ => "Unknown"
+            };
+            string scaleName = scale == 0 ? "Major" : "Minor";
+            return $"{keyName} {scaleName}";
         }
 
         public void HotkeyPressed(object sender, HotkeyEventArgs e)

@@ -1,24 +1,26 @@
 ﻿<Window x:Class="WpfApp1.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="MIDI Piano Player" Height="675" Width="340"
-        Closing="Window_Closing">
-    <Grid>
-        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Top" Margin="10">
-            <TextBlock x:Name="StatusTextBlock" Text="Status: Ready" Margin="5"/>
-            <TextBlock x:Name="PlaybackSpeedTextBlock" Text="Playback Speed: 1.0x" Margin="5"/>
-            <TextBlock x:Name="TempoTextBlock" Text="Tempo: 120 BPM" Margin="5"/>
-            <TextBlock x:Name="CurrentTimeTextBlock" Text="0:00 / 0:00" Margin="5"/>
-            <ListBox x:Name="SongListBox" Width="300" Height="200" Margin="5"/>
-            <Button x:Name="PlaySelectedSongButton" Content="Play Selected Song" Click="PlaySelectedSongButton_Click" Margin="5"/>
-            <Button x:Name="PauseResumeButton" Content="Pause/Resume" Click="PauseResumeButton_Click" Margin="5"/>
-            <Button x:Name="FastForwardButton" Content="Fast Forward" Click="FastForwardButton_Click" Margin="5"/>
-            <Button x:Name="RewindButton" Content="Rewind" Click="RewindButton_Click" Margin="5"/>
-            <Button x:Name="IncreaseSpeedButton" Content="Increase Speed" Click="IncreaseSpeedButton_Click" Margin="5"/>
-            <Button x:Name="DecreaseSpeedButton" Content="Decrease Speed" Click="DecreaseSpeedButton_Click" Margin="5"/>
-            <Button x:Name="ToggleLegitModeButton" Content="Toggle Legit Mode" Click="ToggleLegitModeButton_Click" Margin="5"/>
-            <Button x:Name="DisableSustainButton" Content="Disable Sustain" Click="DisableSustainButton_Click" Margin="5"/>
-            <Button x:Name="EndSongButton" Content="End Song" Click="EndSongButton_Click" Margin="5"/>
+        Title="MIDI Player" Height="745" Width="245">
+    <Grid Margin="0,0,0,8">
+        <StackPanel Orientation="Vertical" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10">
+            <ListBox Name="MidiFilesListBox" SelectionMode="Single" Height="200" Width="200" ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+            <Button Content="Play Selected Song" Click="PlaySelectedSongButton_Click" Margin="5"/>
+            <Button Content="Pause/Resume" Click="PauseResumeButton_Click" Margin="5"/>
+            <Button Content="Fast Forward" Click="FastForwardButton_Click" Margin="5"/>
+            <Button Content="Rewind" Click="RewindButton_Click" Margin="5"/>
+            <Button Content="Increase Speed" Click="IncreaseSpeedButton_Click" Margin="5"/>
+            <Button Content="Decrease Speed" Click="DecreaseSpeedButton_Click" Margin="5"/>
+            <Button Content="Toggle Legit Mode" Click="ToggleLegitModeButton_Click" Margin="5"/>
+            <Button Content="End Song" Click="EndSongButton_Click" Margin="5"/>
+            <Button Content="Disable Sustain" Click="DisableSustainButton_Click" Margin="5"/>
+            <TextBlock Name="StatusTextBlock" Margin="5"/>
+            <TextBlock Name="PlaybackSpeedTextBlock" Margin="5"/>
+            <TextBlock Name="CurrentTimeTextBlock" Margin="5"/>
+            <TextBlock Name="TempoTextBlock" Margin="5"/>
+            <TextBlock Name="KeySignatureTextBlock" Margin="5"/>
+            <TextBlock Name="TimeSignatureTextBlock" Margin="5"/>
+            <TextBlock Name="LyricsTextBlock" Margin="5"/>
         </StackPanel>
     </Grid>
 </Window>
